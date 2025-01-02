@@ -1,0 +1,114 @@
+===============================
+=         NAPKIN SPEC         =
+===============================
+
+=== IDEAS ===
+* text files only
+* usage of temporary text files with `$EDITOR` instead of stdin
+* usage of either yaml or another light-weight configuration language for
+  meta-data storage
+* simple, reliable, database-less storage with human-readable storage
+* exporting to either directories of each version or the last version
+* only one text file per 'napkin' as any more files would warrant the usage of
+  a git repo
+* lock files are created during the modification of an important file
+* dead-simple data viewing and editing through the opening of the configuration
+  yml files
+* dead-simple backups (through tarballs) and loads from backups simply copy and
+  combine yml files
+* a `trim` command that would delete all files in the napkin home directory
+  that aren't referenced in any of the configuration files
+* a `dump: true` option after the saving of a napkin to choose to keep or
+  discard any changes
+* A temporary directory in which changes to configuration files (through
+  copying them first) which can be written only if the `dump` option is set to
+  false.
+* changes to napkin contents are automatically saved (as a side-effect) as they
+  operate directly in the napkin's directory (no clashes due to the uid system)
+  and can only be discarded by the `clear` operation in which unlinked files
+  are discarded.
+* napkins and napkin contents would be removed by simply unlinking them in the
+  yaml files
+
+=== CLI ===
+options:
+	* `-V`: returns the version
+commands:
+	list                      : lists the napkins in a pretty way
+
+	clear                     : removes files from the napkin home that aren't
+								referenced (locks too)
+
+	context                   : opens and edits the context file
+
+	new                       : creates a new napkin through creating a new tmp
+								napkin meta.yml , then if it isn't dumped,
+								creates a new napkin dir, and then updates the
+								context.yml file automatically
+
+	meta <uid>                : edits the meta-data of a pre-existing napkin
+
+	edit <uid>                : edits the contents of a pre-existing napkin
+								through first generating a new uid, writing the
+								contents into the napkin directory, then
+								updating the meta.yml (with the option to dump)
+								, where if it is, then the changes to the
+								meta.yml are removed but not the contents as
+								they are now unlinked and would be cleaned up
+								by the next `trim` invocation
+
+	export -u <uids> -o <path>: exports the napkins of the specified uids (all
+								if none are provided) as a tarball by simply
+								just copying the napkin's subdirectory into the
+								tarball at the specified path and producing a
+								reduced context.yml
+
+	import <path> -b          : blindly imports the napkins stored within a
+								specified tarball through copying the contents
+								and combining any yml files or replacing other
+								content files, favouring the original's or the
+								backup's version in case of conflicts depending
+								on the 'b' flag
+
+=== HOME DIRECTORY STRUCTURE ===
+* `-` denotes a new file or directory
+* `(?)` denotes a file/dir that's optional
+* `(*)` denotes a file/dir where none or multiple are allowed
+* context is separated by a `|`
+
+- ~/.napkin         | ( ) home directory
+	- context.lock  | (?) lock to prevent corruption of context.yml
+	- context.yml   | ( ) context file that links ids to UNIX time uids
+	- 0000          | (+) UNIX time uid of the napkin
+		- meta.lock | (?) lock to prevent corruption of meta.yml
+		- meta.yml  | ( ) metadata for file contents
+		- 0000      | (+) file contents with UNIX time uid
+	- tmp           | ( ) a temporary dir for any yml changes (randomised ids)
+
+=== CONTEXT.YML ===
+The `context.yml` file contains the version (for backwards and forwards
+compatibility) and also a list of all the napkins' uids.
+
+example `context.yml`:
+	---
+	version: 0.0.0
+	napkins: [
+		0000,
+		0001,
+	]
+	...
+
+=== META.YML ===
+The `meta.yml` file contains the name, description and creation-date of a
+napkin. A history of all the content's uids, and their corresponding date (for
+version control) is also included.
+
+example `meta.yml`:
+	---
+	name: example napkin
+	description: an example napkin
+	creation-date: 0000-00-00T00:00:00Z
+	history:
+		0000:
+			date: 0000-00-00T00:00:00Z
+	...
