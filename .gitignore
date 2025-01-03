@@ -1,0 +1,3 @@
+# Rust compiled files and executables
+target/
+debug/
