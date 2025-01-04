@@ -29,8 +29,15 @@ pub enum Command {
         #[arg(index=1, help="The uid of the napkin in question")]
         uid: u128,
     },
-    #[command(about="Exports the napkins of the specified uids in a tarball (all if none specified)")]
+    #[command(about="Exports the napkins of the specified uids as text files in a directory (all if none specified)")]
     Export {
+        #[arg(short, long, num_args=.., help="The uids of the napkins to export (all if none specified)")]
+        uids: Vec<u128>,
+        #[arg(short='o', long="output", help="The output path of the tarball")]
+        path: String,
+    },
+    #[command(about="Backs up the napkins of the specified uids in a tarball (all if none specified)")]
+    Backup {
         #[arg(short, long, num_args=.., help="The uids of the napkins to export (all if none specified)")]
         uids: Vec<u128>,
         #[arg(short='o', long="output", help="The output path of the tarball")]

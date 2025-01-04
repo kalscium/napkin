@@ -25,8 +25,9 @@ pub fn edit(path: &str) {
     }
 }
 
-/// Creates a temporary file with an initial string and returns the edited result
-pub fn read_tmp(initial: String) -> String {
+/// Creates a temporary file with an initial string and file extension and
+/// returns the edited result.
+pub fn read_tmp(initial: &str, ext: &str) -> String {
     // generate a random number/id
     let random: usize = rand::random();
 
@@ -39,7 +40,7 @@ pub fn read_tmp(initial: String) -> String {
     }
 
     // create a new file in the tmp dir with the initial text
-    let file_path = tmp_dir.join(random.to_string());
+    let file_path = tmp_dir.join(random.to_string()).with_extension(ext);
     fs::write(&file_path, initial)
         .wrap_err_with(|| format!("while creating temporary file in {}", file_path.to_string_lossy()))
         .unwrap();

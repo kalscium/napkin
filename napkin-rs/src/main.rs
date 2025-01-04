@@ -9,7 +9,7 @@ fn main() {
     let cli = Cli::parse();
 
     // edit temporary file
-    let text = read_tmp("I hate ...".to_string());
+    let text = read_tmp("I hate ...", "txt");
     println!("{text}");
 
     _ = cli;
