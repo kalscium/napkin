@@ -1,6 +1,16 @@
 use clap::Parser;
-use napkin::cli::Cli;
+use napkin::{cli::Cli, tmp::read_tmp};
 
 fn main() {
-    Cli::parse();
+    // setup color-eyre
+    color_eyre::install().unwrap();
+
+    // parse the cli
+    let cli = Cli::parse();
+
+    // edit temporary file
+    let text = read_tmp("I hate ...".to_string());
+    println!("{text}");
+
+    _ = cli;
 }
