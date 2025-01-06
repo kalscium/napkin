@@ -1,6 +1,7 @@
 pub mod cli;
 pub mod tmp;
 pub mod configs;
+pub mod lock;
 
 pub fn get_home() -> std::path::PathBuf {
     use color_eyre::eyre::ContextCompat;

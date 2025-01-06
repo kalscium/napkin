@@ -1,5 +1,5 @@
 use clap::Parser;
-use napkin::{cli::Cli, configs, tmp::read_tmp};
+use napkin::{cli::Cli, configs, lock, tmp::read_tmp};
 
 fn main() {
     // setup color-eyre
@@ -7,6 +7,9 @@ fn main() {
 
     // parse the cli
     let cli = Cli::parse();
+
+    // create a testing lock
+    let _ = lock::lock("testing").expect("already locked!");
 
     // edit temporary file
     let mut text = read_tmp("# write some yaml here", "yml");
