@@ -1,7 +1,11 @@
 use clap::Parser;
-use napkin::{cli::Cli, configs, lock, tmp::read_tmp};
+use napkin::{cli::Cli, configs, context, lock, tmp::read_tmp};
 
 fn main() {
+    context::open_context();
+}
+
+fn _old_main() {
     // setup color-eyre
     color_eyre::install().unwrap();
 
