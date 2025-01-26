@@ -18,11 +18,8 @@ pub const Error = error{
     OptionNotFound,
 };
 
-/// Metadata for possible errors
-pub const ErrorMeta = ?[:0]const u8;
-
 /// Parses for an option and returns the option-name
-pub fn parseOption(arg: [:0]const u8) Error!?[:0]const u8 {
+pub fn parseOption(arg: []const u8) Error!?[]const u8 {
     // make sure the argument is long enough
     if (arg.len < 2) return error.InvalidOption;
 

@@ -15,6 +15,7 @@ fn runCli() !void {
 
     // get cli args
     const args = try std.process.argsAlloc(allocator);
+    defer allocator.free(args);
 
     // CLI PARSING
 
