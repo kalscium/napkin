@@ -25,9 +25,47 @@ fn runCli() !void {
             return printHelp();
         }
     }
+
+    // parse for '--version'
+    if (try cli.parseOption(args[1])) |option| {
+        if (std.mem.eql(u8, option, "version") or std.mem.eql(u8, option, "V")) {
+            std.debug.print("napkin {s}\n", .{root.version});
+            return;
+        }
+    }
+
+    // test command
+    if (std.mem.eql(u8, args[1], "test")) {
+        std.debug.print("hello, world!\n", .{});
+        return;
+    }
+
+    // if it hasn't returned by now, then there are invalid arguments
+    if (try cli.parseOption(args[1])) |_|
+        return cli.Error.OptionNotFound
+    else
+        return cli.Error.CommandNotFound;
 }
 
 /// Prints a help message
 fn printHelp() void {
-    std.debug.print("replace this with a help message\n", .{});
+    const help =
+        \\Usage: napkin [options] [command] [command options]
+        \\Commands:
+        \\  test                    | A mere testing command.
+        \\  list                    | Lists the napkins in a pretty format.
+        \\  clear                   | Removes files from the napkin home that aren't referenced (locks too).
+        \\  context                 | Opens and edits the context file.
+        \\  new                     | Creates a new napkin and updates `context.yml`.
+        \\  meta <uid>              | Edits the meta-data of a pre-existing napkin.
+        \\  edit <uid>              | CoW edits the contents of a pre-existing napkin.
+        \\  backup <path> -u <uids> | Exports the napkins of the specified uids (all if none are provided) as a tarball.
+        \\  export <path> -u <uids> | Exports the napkins of the specified uids (all if none provided) as text files.
+        \\  import (-b)? <path>     | Blindly imports the napkins stored in a tarball, taking the side of either the backup (when the 'b' flag is enabled) or the pre-existing napkin home.
+        \\Options:
+        \\  -h, --help    prints this help message
+        \\  -V, --version prints the version
+        \\
+    ;
+    std.debug.print(help, .{});
 }

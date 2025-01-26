@@ -4,8 +4,6 @@ const std = @import("std");
 
 /// Possible errors from parsing commandline arguments
 pub const Error = error{
-    /// Unexpected argument to the cli
-    UnexpectedArg,
     /// Expected an argument that wasn't found
     ExpectedArg,
     /// Expected an option that wasn't found
@@ -22,25 +20,6 @@ pub const Error = error{
 
 /// Metadata for possible errors
 pub const ErrorMeta = ?[:0]const u8;
-
-/// Parses for a command
-pub fn parseCommand(comptime Cmd: type, arg: [:0]const u8) Error!Cmd {
-    // create an if-else chain to find the correct command
-    const type_info = @typeInfo(Cmd).Enum;
-    inline for (type_info.fields) |field| {
-        // make the field-name lowercase
-        comptime var lowercase: [field.name.len]u8 = [_]u8{0} ** field.name.len;
-        _ = comptime std.ascii.lowerString(&lowercase, field.name);
-        const rt_lowercase = lowercase;
-
-        // compare
-        if (std.mem.eql(u8, arg, &rt_lowercase))
-            return @field(Cmd, field.name);
-    }
-
-    // if none of them match
-    return Error.CommandNotFound;
-}
 
 /// Parses for an option and returns the option-name
 pub fn parseOption(arg: [:0]const u8) Error!?[:0]const u8 {
