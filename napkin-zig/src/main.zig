@@ -3,7 +3,15 @@ const root = @import("napkin");
 const cli = root.cli;
 
 pub fn main() !void {
-    try runCli();
+    if (runCli()) {}
+    else |err| switch (err) {
+        // make user-dump interrupts exit more gracefully
+        error.UserDumpInterrupt => {
+            std.debug.print("user dump interrupt\n", .{});
+            std.process.exit(0);
+        },
+        else => return err,
+    }
 }
 
 /// Parses and runs the cli
@@ -38,12 +46,21 @@ fn runCli() !void {
     // test command
     if (std.mem.eql(u8, args[1], "test")) {
         std.debug.print("hello, world!\n", .{});
+        // var value: []const u8 = "";
+        // try root.napkin.editMetaStr(allocator, &value);
+        try root.context.addNapkin(allocator, 128);
         return;
     }
 
     // context command
     if (std.mem.eql(u8, args[1], "context")) {
-        try root.context.openContext(allocator);
+        try root.context.edit(allocator);
+        return;
+    }
+
+    // new command
+    if (std.mem.eql(u8, args[1], "new")) {
+        try root.napkin.newNapkin(allocator);
         return;
     }
 

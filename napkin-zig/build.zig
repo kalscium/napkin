@@ -42,8 +42,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // zig-datetime dependency
+    const zig_datetime_dep = b.dependency("zig-datetime", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     // Imports
     lib.root_module.addImport("yaml", zig_yaml_dep.module("yaml"));
+    lib.root_module.addImport("datetime", zig_datetime_dep.module("zig-datetime"));
     exe.root_module.addImport("napkin", &lib.root_module);
 
     // This declares intent for the executable to be installed into the
