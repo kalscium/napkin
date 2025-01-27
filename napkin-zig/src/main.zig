@@ -38,6 +38,7 @@ fn runCli() !void {
     // test command
     if (std.mem.eql(u8, args[1], "test")) {
         std.debug.print("hello, world!\n", .{});
+        allocator.free(try root.tmp.read_tmp(allocator, "# nice", "md"));
         return;
     }
 
@@ -55,7 +56,7 @@ fn printHelp() void {
         \\Commands:
         \\  test                    | A mere testing command.
         \\  list                    | Lists the napkins in a pretty format.
-        \\  clear                   | Removes files from the napkin home that aren't referenced (locks too).
+        \\  clean                   | Removes files from the napkin home that aren't referenced
         \\  context                 | Opens and edits the context file.
         \\  new                     | Creates a new napkin and updates `context.yml`.
         \\  meta <uid>              | Edits the meta-data of a pre-existing napkin.
