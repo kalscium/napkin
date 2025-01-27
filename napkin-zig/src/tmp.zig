@@ -26,10 +26,17 @@ pub fn edit(allocator: std.mem.Allocator, path: []const u8) !void {
         return error.EditorNonZeroExitCode;
 }
 
+/// Edits a string through a temporary file, string is still owned by the
+/// caller
+pub fn editStr(allocator: std.mem.Allocator, string: *[]const u8, ext: []const u8) !void {
+    const new_string = try readTmp(allocator, string.*, ext);
+    allocator.free(string.*);
+    string.* = new_string;
+}
 
 /// Creates a temporary file with an initial string and file extension and
 /// returns the edited result that's owned by the caller
-pub fn read_tmp(allocator: std.mem.Allocator, initial: []const u8, ext: []const u8) ![]const u8 {
+pub fn readTmp(allocator: std.mem.Allocator, initial: []const u8, ext: []const u8) ![]const u8 {
     // generate a random number/id
     var rng = std.Random.DefaultPrng.init(0);
     const id = rng.random().int(usize);

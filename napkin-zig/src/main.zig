@@ -38,7 +38,12 @@ fn runCli() !void {
     // test command
     if (std.mem.eql(u8, args[1], "test")) {
         std.debug.print("hello, world!\n", .{});
-        allocator.free(try root.tmp.read_tmp(allocator, "# nice", "md"));
+        return;
+    }
+
+    // context command
+    if (std.mem.eql(u8, args[1], "context")) {
+        try root.context.openContext(allocator);
         return;
     }
 

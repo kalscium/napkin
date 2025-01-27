@@ -2,9 +2,8 @@ const std = @import("std");
 
 pub const cli = @import("cli.zig");
 pub const tmp = @import("tmp.zig");
-
-/// Metadata for possible errors
-pub const ErrorMeta = ?[]const u8;
+pub const context = @import("context.zig");
+pub const configs = @import("configs.zig");
 
 /// The version of napkin
 pub const version = "0.0.0";
