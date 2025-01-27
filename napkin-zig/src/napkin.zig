@@ -68,6 +68,43 @@ pub fn editMetaStr(allocator: std.mem.Allocator, contents: *[]const u8) !void {
     }
 }
 
+/// Returns the meta-data path of a napkin that's owned by the caller
+pub fn metaPath(allocator: std.mem.Allocator, id: i128) ![]const u8 {
+    const home_path = try root.getHome(allocator);
+    defer allocator.free(home_path);
+    const path = try std.fmt.allocPrint(allocator, "{s}/{}/meta.yml", .{ home_path, id });
+    return path;
+}
+
+/// Makes the user edit the meta-data of a pre-existing napkin
+pub fn editMeta(allocator: std.mem.Allocator, id: i128) !void {
+    // get the meta-data path
+    const meta_path = try metaPath(allocator, id);
+    defer allocator.free(meta_path);
+
+    // check if the meta-data file exists or not
+    if (!try root.pathExists(meta_path))
+        return error.NapkinNotFound;
+    
+    // lock the metadata
+    var lock = try root.lock.lock(allocator, meta_path);
+    defer lock.unlock();
+
+    // open the file and get it's contents
+    var rfile = try std.fs.openFileAbsolute(meta_path, .{});
+    var contents = try rfile.readToEndAlloc(allocator, 1024 * 1024 * 1024);
+    defer allocator.free(contents);
+    rfile.close();
+
+    // make the user edit it until it's valid
+    try editMetaStr(allocator, &contents);
+
+    // write the changes to the metadata file
+    var wfile = try std.fs.createFileAbsolute(meta_path, .{});
+    try wfile.writeAll(contents);
+    wfile.close();
+}
+
 /// Creates a new napkin and updates the context.yml
 pub fn newNapkin(allocator: std.mem.Allocator) !void {
     // get the context.yml path
@@ -109,7 +146,7 @@ pub fn newNapkin(allocator: std.mem.Allocator) !void {
     defer allocator.free(home_path);
     const napkin_path = try std.fmt.allocPrint(allocator, "{s}/{}", .{ home_path, now_timestamp });
     defer allocator.free(napkin_path);
-    const meta_path = try std.mem.concat(allocator, u8, &.{ napkin_path, "/meta.yml" });
+    const meta_path = try metaPath(allocator, now_timestamp);
     defer allocator.free(meta_path);
     const content_path = try std.fmt.allocPrint(allocator, "{s}/{}.{s}", .{ napkin_path, now_timestamp, fileext });
     defer allocator.free(content_path);

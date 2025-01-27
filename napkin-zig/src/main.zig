@@ -64,6 +64,23 @@ fn runCli() !void {
         return;
     }
 
+    // meta command
+    if (std.mem.eql(u8, args[1], "meta")) {
+        // get the id
+        if (args.len < 3) {
+            printHelp();
+            return error.ExpectedArgument;
+        }
+
+        const id = std.fmt.parseInt(i128, args[2], 0) catch |err| {
+            printHelp();
+            return err;
+        };
+
+        try root.napkin.editMeta(allocator, id);
+        return;
+    }
+
     // if it hasn't returned by now, then there are invalid arguments
     if (try cli.parseOption(args[1])) |_|
         return cli.Error.OptionNotFound
