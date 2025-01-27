@@ -61,7 +61,7 @@ fn printHelp() void {
         \\Commands:
         \\  test                    | A mere testing command.
         \\  list                    | Lists the napkins in a pretty format.
-        \\  clean                   | Removes files from the napkin home that aren't referenced
+        \\  clean                   | Removes files from the napkin home that aren't referenced (locks too).
         \\  context                 | Opens and edits the context file.
         \\  new                     | Creates a new napkin and updates `context.yml`.
         \\  meta <uid>              | Edits the meta-data of a pre-existing napkin.

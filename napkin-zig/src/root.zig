@@ -4,6 +4,7 @@ pub const cli = @import("cli.zig");
 pub const tmp = @import("tmp.zig");
 pub const context = @import("context.zig");
 pub const configs = @import("configs.zig");
+pub const lock = @import("lock.zig");
 
 /// The version of napkin
 pub const version = "0.0.0";
@@ -22,15 +23,20 @@ pub fn getHome(allocator: std.mem.Allocator) ![]const u8 {
     const home = try std.mem.concat(allocator, u8, &.{ user_home, "/.napkin" });
 
     // if the directory doesn't exist, then create it
-    if (std.fs.accessAbsolute(home, .{})) {}
-    else |err| {
-        if (err == error.FileNotFound) {
-            try std.fs.makeDirAbsolute(home);
-        } else {
-            return err;
-        }
+    if (!try pathExists(home)) {
+        try std.fs.makeDirAbsolute(home);
     }
 
     // return the home directory
     return home;
+}
+
+/// Checks if a file or dir exists or not
+pub fn pathExists(path: []const u8) !bool {
+    if (std.fs.accessAbsolute(path, .{}))
+        return true
+    else |err| switch (err) {
+        error.FileNotFound => return false,
+        else => return err,
+    }
 }

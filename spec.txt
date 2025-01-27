@@ -12,6 +12,7 @@
 * only one text file per 'napkin' as any more files would warrant the
   usage of
   a git repo
+* lock files are created during the modification of an important file
 * dead-simple data viewing and editing through the opening of the
   configuration yml files
 * dead-simple backups (through tarballs) and loads from backups simply
@@ -41,7 +42,7 @@ commands:
 	list                      : lists the napkins in a pretty way
 
 	clean                     : removes files from the napkin home that
-								aren't referenced
+								aren't referenced (locks too)
 
 	context                   : opens and edits the context file
 
@@ -94,8 +95,10 @@ commands:
 * context is separated by a `|`
 
 - ~/.napkin         | ( ) home directory
+	- context.lock  | (?) lock to prevent corruption of context.yml
 	- context.yml   | ( ) context file that links ids to UNIX time uids
 	- 0000          | (+) UNIX time uid of the napkin
+		- meta.lock | (?) lock to prevent corruption of meta.yml
 		- meta.yml  | ( ) metadata for file contents
 		- 0000.txt  | (+) file contents with UNIX time uid
 	- tmp           | ( ) a temporary dir for any yml changes

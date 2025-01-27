@@ -35,15 +35,16 @@ pub fn openContext(allocator: std.mem.Allocator) !void {
     const path = try contextPath(allocator);
     defer allocator.free(path);
 
+    // lock the context file
+    var lock = try root.lock.lock(allocator, path);
+    defer lock.unlock();
+
     // initialise a context file if there isn't one there already
-    if (std.fs.accessAbsolute(path, .{})) {}
-    else |err| switch (err) {
-        error.FileNotFound => try initContext(path),
-        else => return err,
-    }
+    if (!try root.pathExists(path))
+        try initContext(path);
 
     // open the file and read it's contents
-    var file = try std.fs.openFileAbsolute(path, .{ .lock = .exclusive });
+    var file = try std.fs.openFileAbsolute(path, .{});
     var contents: []const u8 = try file.readToEndAlloc(allocator, 1024 * 1024 * 1024);
     file.close();
     defer allocator.free(contents); // looks like it'll double-free, but it won't
@@ -87,7 +88,7 @@ pub fn openContext(allocator: std.mem.Allocator) !void {
     }
 
     // write the changes to the context file
-    file = try std.fs.createFileAbsolute(path, .{ .lock = .exclusive });
+    file = try std.fs.createFileAbsolute(path, .{});
     try file.writeAll(contents);
     file.close();
 }
