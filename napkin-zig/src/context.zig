@@ -15,9 +15,7 @@ pub fn initContext(path: []const u8) !void {
         \\...
     ;
 
-    var file = try std.fs.createFileAbsolute(path, .{});
-    defer file.close();
-    try file.writeAll(format);
+    try root.configs.writeToFile(format, path);
 }
 
 /// Gets the path to the context file.
@@ -44,9 +42,7 @@ pub fn edit(allocator: std.mem.Allocator) !void {
         try initContext(path);
 
     // open the file and read it's contents
-    var file = try std.fs.openFileAbsolute(path, .{});
-    var contents: []const u8 = try file.readToEndAlloc(allocator, 1024 * 1024 * 1024);
-    file.close();
+    var contents: []const u8 = try root.configs.readToString(allocator, path);
     defer allocator.free(contents); // looks like it'll double-free, but it won't
 
     while (true) {
@@ -88,9 +84,7 @@ pub fn edit(allocator: std.mem.Allocator) !void {
     }
 
     // write the changes to the context file
-    file = try std.fs.createFileAbsolute(path, .{});
-    try file.writeAll(contents);
-    file.close();
+    try root.configs.writeToFile(contents, path);
 }
 
 /// Checks if the versions are compatible
@@ -104,9 +98,7 @@ pub fn checkVersion(allocator: std.mem.Allocator) !void {
         return try initContext(context_path);
 
     // get the context contents
-    var fcontext = try std.fs.openFileAbsolute(context_path, .{});
-    defer fcontext.close();
-    const contents = try fcontext.readToEndAlloc(allocator, 1024 * 1024 * 1024);
+    const contents = try root.configs.readToString(allocator, context_path);
     defer allocator.free(contents);
 
     // parse the contents
@@ -135,9 +127,8 @@ pub fn addNapkin(allocator: std.mem.Allocator, id: i128) !void {
         try initContext(path);
 
     // read the contents of the file
-    var rfile = try std.fs.openFileAbsolute(path, .{});
-    const contents = try rfile.readToEndAlloc(allocator, 1024 * 1024 * 1024);
-    rfile.close();
+    const contents = try root.configs.readToString(allocator, path);
+    defer allocator.free(contents);
 
     // parse the doc
     var doc = try yaml.Yaml.load(allocator, contents);

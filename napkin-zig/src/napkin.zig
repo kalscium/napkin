@@ -94,18 +94,14 @@ pub fn editMeta(allocator: std.mem.Allocator, id: i128) !void {
     defer lock.unlock();
 
     // open the file and get it's contents
-    var rfile = try std.fs.openFileAbsolute(meta_path, .{});
-    var contents = try rfile.readToEndAlloc(allocator, 1024 * 1024 * 1024);
+    var contents = try root.configs.readToString(allocator, meta_path);
     defer allocator.free(contents);
-    rfile.close();
 
     // make the user edit it until it's valid
     try editMetaStr(allocator, &contents);
 
     // write the changes to the metadata file
-    var wfile = try std.fs.createFileAbsolute(meta_path, .{});
-    try wfile.writeAll(contents);
-    wfile.close();
+    try root.configs.writeToFile(contents, meta_path);
 }
 
 /// Creates a new napkin and updates the context.yml
@@ -161,12 +157,8 @@ pub fn newNapkin(allocator: std.mem.Allocator) !void {
     
     // write everything to the napkin home
     try std.fs.makeDirAbsolute(napkin_path);
-    var fmeta = try std.fs.createFileAbsolute(meta_path, .{});
-    try fmeta.writeAll(metadata);
-    fmeta.close();
-    var fcontent = try std.fs.createFileAbsolute(content_path, .{});
-    try fcontent.writeAll("waiting for something to happen?\n");
-    fcontent.close();
+    try root.configs.writeToFile(metadata, meta_path);
+    try root.configs.writeToFile("waiting for something to happen?\n", content_path);
 
     // write the result to stdout & stderr
     std.debug.print("initialised napkin id: ", .{});
@@ -185,9 +177,7 @@ pub fn latestContents(allocator: std.mem.Allocator, nid: i128) ![]const u8 {
         return error.NapkinNotFound;
 
     // read the contents of the metadata
-    var fmeta = try std.fs.openFileAbsolute(meta_path, .{});
-    defer fmeta.close();
-    const meta_str = try fmeta.readToEndAlloc(allocator, 1024 * 1024 * 1024);
+    const meta_str = try root.configs.readToString(allocator, meta_path);
     defer allocator.free(meta_str);
 
     // parse the contents of the metadata
@@ -213,10 +203,7 @@ pub fn latestContents(allocator: std.mem.Allocator, nid: i128) ![]const u8 {
     defer allocator.free(content_path);
 
     // read the contents of it
-    var fcontents = try std.fs.openFileAbsolute(content_path, .{});
-    defer fcontents.close();
-    const contents = try fcontents.readToEndAlloc(allocator, 1024 * 1024 * 1024);
-
+    const contents = try root.configs.readToString(allocator, content_path);
     return contents;
 }
 
@@ -239,10 +226,8 @@ pub fn edit(allocator: std.mem.Allocator, id: i128) !void {
     defer lock.unlock();
 
     // open the meta-data file
-    var frmeta = try std.fs.openFileAbsolute(meta_path, .{});
-    const meta_str = try frmeta.readToEndAlloc(allocator, 1024 * 1024 * 1024);
+    const meta_str = try root.configs.readToString(allocator, meta_path);
     defer allocator.free(meta_str);
-    frmeta.close();
     var metadata = try yaml.Yaml.load(allocator, meta_str);
     defer metadata.deinit();
 
@@ -263,9 +248,7 @@ pub fn edit(allocator: std.mem.Allocator, id: i128) !void {
     // create the new contents file with the extension
     const new_content_path = try std.fmt.allocPrint(allocator, "{s}/{}/{}.{s}", .{ home_path, id, timestamp, fileext });
     defer allocator.free(new_content_path);
-    var fnew_content = try std.fs.createFileAbsolute(new_content_path, .{});
-    try fnew_content.writeAll(contents);
-    fnew_content.close();
+    try root.configs.writeToFile(contents, new_content_path);
 
     // have the user edit the contents
     try root.tmp.edit(allocator, new_content_path);
@@ -290,7 +273,5 @@ pub fn edit(allocator: std.mem.Allocator, id: i128) !void {
     try editMetaStr(allocator, &new_meta);
 
     // write the final metadata to the meta-data path
-    var fwmeta = try std.fs.createFileAbsolute(meta_path, .{});
-    defer fwmeta.close();
-    try fwmeta.writeAll(new_meta);
+    try root.configs.writeToFile(new_meta, meta_path);
 }
