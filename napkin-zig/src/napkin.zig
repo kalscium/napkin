@@ -12,8 +12,9 @@ pub const template =
     \\description: foobar
     \\creation-date: {s}
     \\history:
-    \\  {}:
-    \\    date: {s}
+    \\    {}:
+    \\        date: {s}
+    \\        gist: napkin folded and initialised
     \\...
 ;
 
@@ -78,6 +79,8 @@ pub fn metaPath(allocator: std.mem.Allocator, id: i128) ![]const u8 {
 
 /// Makes the user edit the meta-data of a pre-existing napkin
 pub fn editMeta(allocator: std.mem.Allocator, id: i128) !void {
+    try root.context.checkVersion(allocator);
+
     // get the meta-data path
     const meta_path = try metaPath(allocator, id);
     defer allocator.free(meta_path);
@@ -117,8 +120,11 @@ pub fn newNapkin(allocator: std.mem.Allocator) !void {
     const now_iso8601 = try now.formatISO8601(allocator, true);
     defer allocator.free(now_iso8601);
 
+    try root.context.checkVersion(allocator);
+
     // lock context file
     var lock = try root.lock.lock(allocator, context_path);
+    defer lock.unlock();
 
     // get the user-edited meta-data
     var metadata = try std.fmt.allocPrint(allocator, template, .{
@@ -134,6 +140,8 @@ pub fn newNapkin(allocator: std.mem.Allocator) !void {
 
     // add the napkin to context.yml (also handles napkins already existing)
     try root.context.addNapkin(allocator, now_timestamp);
+
+    lock = try root.lock.lock(allocator, context_path); // to continue to lock after addNapkin
 
     // get the file extension from the yaml configs
     var doc = try yaml.Yaml.load(allocator, metadata);
@@ -159,4 +167,130 @@ pub fn newNapkin(allocator: std.mem.Allocator) !void {
     var fcontent = try std.fs.createFileAbsolute(content_path, .{});
     try fcontent.writeAll("waiting for something to happen?\n");
     fcontent.close();
+
+    // write the result to stdout & stderr
+    std.debug.print("initialised napkin id: ", .{});
+    var stdout = std.io.getStdOut();
+    try std.fmt.format(stdout.writer(), "{}\n", .{now_timestamp});
+}
+
+/// Returns the latest version of a napkin's contents, owned by the caller
+pub fn latestContents(allocator: std.mem.Allocator, nid: i128) ![]const u8 {
+    // get the path to the napkin metadata
+    const meta_path = try metaPath(allocator, nid);
+    defer allocator.free(meta_path);
+
+    // check if it exists or not
+    if (!try root.pathExists(meta_path))
+        return error.NapkinNotFound;
+
+    // read the contents of the metadata
+    var fmeta = try std.fs.openFileAbsolute(meta_path, .{});
+    defer fmeta.close();
+    const meta_str = try fmeta.readToEndAlloc(allocator, 1024 * 1024 * 1024);
+    defer allocator.free(meta_str);
+
+    // parse the contents of the metadata
+    var metadata = try yaml.Yaml.load(allocator, meta_str);
+    defer metadata.deinit();
+
+    // get the file extension
+    const filename = metadata.docs.items[0].map.get("filename").?.string;
+    const fileext = getExtension(filename);
+
+    // get the latest (largest) napkin id
+    const napkins = metadata.docs.items[0].map.get("history").?.map.keys();
+    var id: i128 = 0;
+    for (napkins) |napkin| {
+        const val = try std.fmt.parseInt(i128, napkin, 0);
+        if (val > id) id = val;
+    }
+
+    // construct the path
+    const home_path = try root.getHome(allocator);
+    defer allocator.free(home_path);
+    const content_path = try std.fmt.allocPrint(allocator, "{s}/{}/{}.{s}", .{ home_path, nid, id, fileext });
+    defer allocator.free(content_path);
+
+    // read the contents of it
+    var fcontents = try std.fs.openFileAbsolute(content_path, .{});
+    defer fcontents.close();
+    const contents = try fcontents.readToEndAlloc(allocator, 1024 * 1024 * 1024);
+
+    return contents;
+}
+
+/// Makes the user CoW edit a napkin's content while automatically updating it's meta.yml
+pub fn edit(allocator: std.mem.Allocator, id: i128) !void {
+    try root.context.checkVersion(allocator);
+
+    // get the meta & home paths
+    const meta_path = try metaPath(allocator, id);
+    defer allocator.free(meta_path);
+    const home_path = try root.getHome(allocator);
+    defer allocator.free(home_path);
+
+    // check if the meta-data file exists or not
+    if (!try root.pathExists(meta_path))
+        return error.NapkinNotFound;
+
+    // aquire a lock on the metadata
+    var lock = try root.lock.lock(allocator, meta_path);
+    defer lock.unlock();
+
+    // open the meta-data file
+    var frmeta = try std.fs.openFileAbsolute(meta_path, .{});
+    const meta_str = try frmeta.readToEndAlloc(allocator, 1024 * 1024 * 1024);
+    defer allocator.free(meta_str);
+    frmeta.close();
+    var metadata = try yaml.Yaml.load(allocator, meta_str);
+    defer metadata.deinit();
+
+    // get the file extension
+    const filename = metadata.docs.items[0].map.get("filename").?.string;
+    const fileext = getExtension(filename);
+
+    // get the latest contents
+    const contents = try latestContents(allocator, id);
+    defer allocator.free(contents);
+
+    // get the time
+    const time = datetime.datetime.Datetime.now();
+    const timestamp = time.toTimestamp();
+    const timestamp_iso8601 = try time.formatISO8601(allocator, true);
+    defer allocator.free(timestamp_iso8601);
+
+    // create the new contents file with the extension
+    const new_content_path = try std.fmt.allocPrint(allocator, "{s}/{}/{}.{s}", .{ home_path, id, timestamp, fileext });
+    defer allocator.free(new_content_path);
+    var fnew_content = try std.fs.createFileAbsolute(new_content_path, .{});
+    try fnew_content.writeAll(contents);
+    fnew_content.close();
+
+    // have the user edit the contents
+    try root.tmp.edit(allocator, new_content_path);
+
+    // update the metadata (done through string formatting due to strange
+    // errors with the array_hash_map)
+    const format =
+        \\{s}
+        \\    {}:
+        \\        date: {s}
+        \\        gist: <gist>
+        \\...
+    ;
+    var new_meta = try std.fmt.allocPrint(allocator, format, .{
+        std.mem.trimRight(u8, meta_str, " \n\t."), // bit hacky, but works
+        timestamp,
+        timestamp_iso8601,
+    });
+    defer allocator.free(new_meta);
+    
+    // have the user edit the new metadata
+    try editMetaStr(allocator, &new_meta);
+
+    // write the final metadata to the meta-data path
+    var fwmeta = try std.fs.createFileAbsolute(meta_path, .{});
+    defer fwmeta.close();
+    try fwmeta.writeAll(new_meta);
 }

@@ -46,9 +46,8 @@ fn runCli() !void {
     // test command
     if (std.mem.eql(u8, args[1], "test")) {
         std.debug.print("hello, world!\n", .{});
-        // var value: []const u8 = "";
-        // try root.napkin.editMetaStr(allocator, &value);
-        try root.context.addNapkin(allocator, 128);
+        const contents = try root.napkin.latestContents(allocator, 1737977610165);
+        std.debug.print("{s}\n", .{contents});
         return;
     }
 
@@ -78,6 +77,23 @@ fn runCli() !void {
         };
 
         try root.napkin.editMeta(allocator, id);
+        return;
+    }
+
+    // edit command
+    if (std.mem.eql(u8, args[1], "edit")) {
+        // get the id
+        if (args.len < 3) {
+            printHelp();
+            return error.ExpectedArgument;
+        }
+
+        const id = std.fmt.parseInt(i128, args[2], 0) catch |err| {
+            printHelp();
+            return err;
+        };
+
+        try root.napkin.edit(allocator, id);
         return;
     }
 

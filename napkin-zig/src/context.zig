@@ -93,6 +93,33 @@ pub fn edit(allocator: std.mem.Allocator) !void {
     file.close();
 }
 
+/// Checks if the versions are compatible
+pub fn checkVersion(allocator: std.mem.Allocator) !void {
+    // get the context path
+    const context_path = try getPath(allocator);
+    defer allocator.free(context_path);
+
+    // check if it exists or not, init if not
+    if (!try root.pathExists(context_path))
+        return try initContext(context_path);
+
+    // get the context contents
+    var fcontext = try std.fs.openFileAbsolute(context_path, .{});
+    defer fcontext.close();
+    const contents = try fcontext.readToEndAlloc(allocator, 1024 * 1024 * 1024);
+    defer allocator.free(contents);
+
+    // parse the contents
+    var context = try yaml.Yaml.load(allocator, contents);
+    defer context.deinit();
+
+    // primative ik
+    var version = context.docs.items[0].map.get("version").?.string;
+    version = std.mem.trim(u8, version, " \n\t");
+    if (!std.mem.eql(u8, version, root.version))
+        return error.VersionMismatch;
+}
+
 /// Adds a napkin to the napkin list in the context configs file
 pub fn addNapkin(allocator: std.mem.Allocator, id: i128) !void {
     // get the context path
@@ -116,8 +143,10 @@ pub fn addNapkin(allocator: std.mem.Allocator, id: i128) !void {
     var doc = try yaml.Yaml.load(allocator, contents);
     defer doc.deinit();
 
+    try checkVersion(allocator);
+
     // get and check the doc's current napkin list
-    const list = doc.docs.items[0].map.getEntry("napkins").?.value_ptr;
+    const list = doc.docs.items[0].map.getPtr("napkins").?;
     for (list.list) |item| { // no dupliates
         if (item.int == @as(i64, @intCast(id)))
             return error.NapkinAlreadyExists;
