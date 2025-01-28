@@ -124,11 +124,13 @@ their corresponding date (for version control) is also included.
 
 example `meta.yml`:
 	---
-	filename: example.foo
-	name: example napkin
+	name: example
+	fileext: foo
 	description: an example napkin
 	creation-date: 0000-00-00T00:00:00Z
 	history:
 		0000:
-			date: 0000-00-00T00:00:00Z
+			fileext: foo
+			datetime: 0000-00-00T00:00:00Z
+			gist: napkin folded and initialized
 	...

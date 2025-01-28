@@ -7,26 +7,17 @@ const datetime = @import("datetime");
 
 pub const template =
     \\---
-    \\filename: foo.bar
-    \\name: bar
-    \\description: foobar
+    \\name: foo
+    \\fileext: txt
+    \\description: bar
     \\creation-date: {s}
     \\history:
     \\    {}:
-    \\        date: {s}
-    \\        gist: napkin folded and initialised
+    \\        fileext: txt
+    \\        datetime: {s}
+    \\        gist: napkin folded and initialized
     \\...
 ;
-
-/// Gets the file extension of the provided filename
-fn getExtension(filename: []const u8) []const u8 {
-    var split = std.mem.splitScalar(u8, filename, '.');
-    var current = split.first();
-    while (split.next()) |scurrent| {
-        current = scurrent;
-    }
-    return current;
-}
 
 /// Makes the user edit the meta-data until it's valid.
 /// This returns the value through modifying the provided string.
@@ -58,7 +49,7 @@ pub fn editMetaStr(allocator: std.mem.Allocator, contents: *[]const u8) !void {
                 return error.UserDumpInterrupt;
 
         // check for fields
-        inline for (.{"filename", "name", "description", "creation-date", "history"}) |field| {
+        inline for (.{"name", "fileext", "description", "creation-date", "history"}) |field| {
             if (!map.contains(field)) {
                 try root.configs.annotateErr(allocator, contents, error.MissingMetaConfigField);
                 continue :loop;
@@ -142,8 +133,7 @@ pub fn newNapkin(allocator: std.mem.Allocator) !void {
     // get the file extension from the yaml configs
     var doc = try yaml.Yaml.load(allocator, metadata);
     defer doc.deinit();
-    const filename = doc.docs.items[0].map.get("filename").?.string;
-    const fileext = getExtension(filename);
+    const fileext = doc.docs.items[0].map.get("fileext").?.string;
 
     // get the paths
     const home_path = try root.getHome(allocator);
@@ -184,16 +174,25 @@ pub fn latestContents(allocator: std.mem.Allocator, nid: i128) ![]const u8 {
     var metadata = try yaml.Yaml.load(allocator, meta_str);
     defer metadata.deinit();
 
-    // get the file extension
-    const filename = metadata.docs.items[0].map.get("filename").?.string;
-    const fileext = getExtension(filename);
-
-    // get the latest (largest) napkin id
+    // get the latest (largest) napkin id and it's file extension
     const napkins = metadata.docs.items[0].map.get("history").?.map.keys();
     var id: i128 = 0;
+    var fileext: []const u8 = undefined;
     for (napkins) |napkin| {
         const val = try std.fmt.parseInt(i128, napkin, 0);
-        if (val > id) id = val;
+        if (val > id) {
+            id = val;
+            fileext = metadata
+                .docs
+                .items[0]
+                .map
+                .get("history").?
+                .map
+                .get(napkin).?
+                .map
+                .get("fileext").?
+                .string;
+        }
     }
 
     // construct the path
@@ -232,8 +231,7 @@ pub fn edit(allocator: std.mem.Allocator, id: i128) !void {
     defer metadata.deinit();
 
     // get the file extension
-    const filename = metadata.docs.items[0].map.get("filename").?.string;
-    const fileext = getExtension(filename);
+    const fileext = metadata.docs.items[0].map.get("fileext").?.string;
 
     // get the latest contents
     const contents = try latestContents(allocator, id);
@@ -258,13 +256,15 @@ pub fn edit(allocator: std.mem.Allocator, id: i128) !void {
     const format =
         \\{s}
         \\    {}:
-        \\        date: {s}
+        \\        fileext: {s}
+        \\        datetime: {s}
         \\        gist: <gist>
         \\...
     ;
     var new_meta = try std.fmt.allocPrint(allocator, format, .{
         std.mem.trimRight(u8, meta_str, " \n\t."), // bit hacky, but works
         timestamp,
+        fileext,
         timestamp_iso8601,
     });
     defer allocator.free(new_meta);
