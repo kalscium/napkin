@@ -127,5 +127,4 @@ example `meta.yml`:
 		0000:
 			fileext: foo
 			datetime: 0000-00-00T00:00:00Z
-			gist: napkin folded and initialized
 	...

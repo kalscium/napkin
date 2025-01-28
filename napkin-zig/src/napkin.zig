@@ -15,7 +15,6 @@ pub const template =
     \\    {}:
     \\        fileext: txt
     \\        datetime: {s}
-    \\        gist: napkin folded and initialized
     \\...
 ;
 
@@ -258,7 +257,6 @@ pub fn edit(allocator: std.mem.Allocator, id: i128) !void {
         \\    {}:
         \\        fileext: {s}
         \\        datetime: {s}
-        \\        gist: <gist>
         \\...
     ;
     var new_meta = try std.fmt.allocPrint(allocator, format, .{
