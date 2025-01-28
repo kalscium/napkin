@@ -46,8 +46,6 @@ fn runCli() !void {
     // test command
     if (std.mem.eql(u8, args[1], "test")) {
         std.debug.print("hello, world!\n", .{});
-        const contents = try root.napkin.latestContents(allocator, 1737977610165);
-        std.debug.print("{s}\n", .{contents});
         return;
     }
 
@@ -97,6 +95,32 @@ fn runCli() !void {
         return;
     }
 
+    // latest command
+    if (std.mem.eql(u8, args[1], "latest")) {
+        // get the id
+        if (args.len < 3) {
+            printHelp();
+            return error.ExpectedArgument;
+        }
+
+        const id = std.fmt.parseInt(i128, args[2], 0) catch |err| {
+            printHelp();
+            return err;
+        };
+
+        // get the contents
+        const latest = try root.napkin.latestContents(allocator, id);
+        defer allocator.free(latest);
+
+        // print details
+        std.debug.print("contents of {}:\n", .{id});
+
+        // print the contents
+        var stdout = std.io.getStdOut();
+        try std.fmt.format(stdout.writer(), "{s}", .{latest});
+        return;
+    }
+
     // if it hasn't returned by now, then there are invalid arguments
     if (try cli.parseOption(args[1])) |_|
         return cli.Error.OptionNotFound
@@ -115,6 +139,7 @@ fn printHelp() void {
         \\  context                 | Opens and edits the context file.
         \\  new                     | Creates a new napkin and updates `context.yml`.
         \\  meta <uid>              | Edits the meta-data of a pre-existing napkin.
+    	\\  latest <uid>            | prints the latest version/edit of of a napkin.
         \\  edit <uid>              | CoW edits the contents of a pre-existing napkin.
         \\  backup <path> -u <uids> | Exports the napkins of the specified uids (all if none are provided) as a tarball.
         \\  export <path> -u <uids> | Exports the napkins of the specified uids (all if none provided) as text files.

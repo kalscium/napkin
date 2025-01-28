@@ -41,52 +41,47 @@ options:
 commands:
 	list                      : lists the napkins in a pretty way
 
-	clean                     : removes files from the napkin home that
-								aren't referenced (locks too)
+	clean                     : removes files from the napkin home that aren't
+								referenced (locks too)
 
 	context                   : opens and edits the context file
 
-	new                       : creates a new napkin through creating a
-								new tmp napkin meta.yml , then if it
-								isn't dumped, creates a new napkin dir,
-								and then updates the context.yml file
-								automatically
+	new                       : creates a new napkin through creating a new tmp
+								napkin meta.yml , then if it isn't dumped,
+								creates a new napkin dir, and then updates the
+								context.yml file automatically
 
-	meta <uid>                : edits the meta-data of a pre-existing
-								napkin
+	meta <uid>                : edits the meta-data of a pre-existing napkin
 
-	edit <uid>                : edits the contents of a pre-existing
-								napkin through first generating a new
-								uid, writing the contents into the
-								napkin directory, then updating the
-								meta.yml (with the option to dump),
-								where if it is, then the changes to the
-								meta.yml are removed but not the
-								contents as they are now unlinked and
-								would be cleaned up by the next `trim`
-								invocation
+	latest <uid>              : prints the latest version/edit of of a napkin
 
-	backup -u <uids> -o <path>: exports the napkins of the specified
-								uids (all if none are provided) as a
-								tarball by simply just copying the
-								napkin's subdirectory into the tarball
-								at the specified path and producing a
+	edit <uid>                : edits the contents of a pre-existing napkin
+								through first generating a new uid, writing the
+								contents into the napkin directory, then
+								updating the meta.yml (with the option to
+								dump), where if it is, then the changes to the
+								meta.yml are removed but not the contents as
+								they are now unlinked and would be cleaned up
+								by the next `trim` invocation
+
+	backup -u <uids> -o <path>: exports the napkins of the specified uids (all
+								if none are provided) as a tarball by simply
+								just copying the napkin's subdirectory into the
+								tarball at the specified path and producing a
 								reduced context.yml
 
-	export -u <uids> -o <path>: exports the napkins of the specified
-								uids (all if none are provided) as text
-								files of the final (latest iteration)
-								of the napkin in the specified output
-								directory path with the file-names
-								specified in the napkin's metadata
+	export -u <uids> -o <path>: exports the napkins of the specified uids (all
+								if none are provided) as text files of the
+								final (latest iteration) of the napkin in the
+								specified output directory path with the
+								file-names specified in the napkin's metadata
 
-	import <path> -b          : blindly imports the napkins stored
-								within a specified tarball through
-								copying the contents and combining any
-								yml files or replacing other content
-								files, favouring the original's or the
-								backup's version in case of conflicts
-								depending on the 'b' flag
+	import <path> -b          : blindly imports the napkins stored within a
+								specified tarball through copying the contents
+								and combining any yml files or replacing other
+								content files, favouring the original's or the
+								backup's version in case of conflicts depending
+								on the 'b' flag
 
 === HOME DIRECTORY STRUCTURE ===
 * `-` denotes a new file or directory
