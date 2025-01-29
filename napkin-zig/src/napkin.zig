@@ -124,10 +124,14 @@ pub fn newNapkin(allocator: std.mem.Allocator, uid: []const u8, fext: []const u8
     if (!try root.pathExists(napkins_path))
         try std.fs.makeDirAbsolute(napkins_path);
 
-    // create this napkin's dir
+    // create this napkin's dir if it doesn't exist already
     const napkin_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ napkins_path, uid });
     defer allocator.free(napkin_path);
-    try std.fs.makeDirAbsolute(napkin_path);
+    if (std.fs.makeDirAbsolute(napkin_path)) {}
+    else |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    }
 
     // format the path of the napkin's first edit
     const edit_path = try std.fmt.allocPrint(allocator, "{s}/{}.{s}", .{
@@ -280,4 +284,37 @@ pub fn edit(allocator: std.mem.Allocator, uid: []const u8) !void {
 
     // write the final metadata to the meta-data path
     try root.configs.writeToFile(new_meta, meta_path);
+}
+
+/// Returns a list (owned by the caller) of all the files referenced by the meta.yml file (including itself)
+pub fn referencedFiles(allocator: std.mem.Allocator, uid: []const u8) ![]const []const u8 {
+    // get home path
+    const home_path = try root.getHome(allocator);
+    defer allocator.free(home_path);
+
+    // get the meta.yml contents
+    const meta_path = try metaPath(allocator, uid); // returned, do not dealloc
+    const meta_contents = try root.configs.readToString(allocator, meta_path);
+    defer allocator.free(meta_contents);
+    var metadata = try yaml.Yaml.load(allocator, meta_contents);
+    defer metadata.deinit();
+
+    // get the list of edit paths
+    const edits = metadata.docs.items[0].map.get("history").?.map.keys();
+    const edit_paths = try allocator.alloc([]const u8, edits.len+1);
+    for (edits, 0..) |entry, i| {
+        const fext = metadata.docs.items[0].map.get("history").?.map.get(entry).?.map.get("fext").?.string;
+        const path = try std.fmt.allocPrint(allocator, "{s}/napkins/{s}/{s}.{s}", .{
+            home_path,
+            uid,
+            entry,
+            fext,
+        });
+        edit_paths[i] = path;
+    }
+
+    // add the meta_path
+    edit_paths[edits.len] = meta_path;
+
+    return edit_paths;
 }

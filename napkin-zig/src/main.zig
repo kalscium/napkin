@@ -131,6 +131,34 @@ fn runCli() !void {
         return;
     }
 
+    if (std.mem.eql(u8, args[1], "clean")) {
+        // get all the referenced paths
+        const referenced = try root.context.referencedFiles(allocator);
+        defer allocator.free(referenced);
+
+        // get all the paths
+        const home_path = try root.getHome(allocator);
+        defer allocator.free(home_path);
+        const all = try root.dirFiles(allocator, home_path);
+        defer allocator.free(all);
+
+        // remove the differences
+        rm: for (all) |path| {
+            const abs_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ home_path, path });
+            defer allocator.free(abs_path);
+
+            for (referenced) |reference| {
+                if (std.mem.eql(u8, reference, abs_path))
+                    continue :rm;
+            }
+
+            std.debug.print("deleting unreferenced file: {s}\n", .{abs_path});
+            try std.fs.deleteFileAbsolute(abs_path);
+        }
+
+        return;
+    }
+
     // if it hasn't returned by now, then there are invalid arguments
     if (try cli.parseOption(args[1])) |_|
         return cli.Error.OptionNotFound

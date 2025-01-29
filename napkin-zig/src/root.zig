@@ -42,3 +42,23 @@ pub fn pathExists(path: []const u8) !bool {
         else => return err,
     }
 }
+
+/// Recursively returns a list (owned by the caller) of all the files in a directory
+pub fn dirFiles(allocator: std.mem.Allocator, path: []const u8) ![]const []const u8 {
+    const dir = try std.fs.openDirAbsolute(path, .{ .iterate = true });
+    var walker = try dir.walk(allocator);
+    defer walker.deinit();
+
+    var files = std.ArrayList([]const u8).init(allocator);
+
+    while (try walker.next()) |entry| {
+        if (entry.kind == .file) {
+            // clone it
+            const entry_path = try allocator.alloc(u8, entry.path.len);
+            std.mem.copyForwards(u8, entry_path, entry.path);
+            try files.append(entry_path);
+        }
+    }
+
+    return files.toOwnedSlice();
+}

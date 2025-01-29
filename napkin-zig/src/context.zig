@@ -217,3 +217,29 @@ pub fn listNapkins(allocator: std.mem.Allocator) !void {
         });
     }
 }
+
+/// Recursively returns a list (owned by the caller) of all the referenced files by the context
+pub fn referencedFiles(allocator: std.mem.Allocator) ![]const []const u8 {
+    // get the contents of the context.yml file
+    const context_path = try getPath(allocator); // returned, do not dealloc
+    const context_contents = try root.configs.readToString(allocator, context_path);
+    defer allocator.free(context_contents);
+    var context = try yaml.Yaml.load(allocator, context_contents);
+    defer context.deinit();
+
+    // get the list of napkins
+    const napkins = context.docs.items[0].map.get("napkins").?.list;
+
+    // get the list of paths
+    var paths = std.ArrayList([]const u8).init(allocator);
+    for (napkins) |napkin| {
+        const napkin_paths = try root.napkin.referencedFiles(allocator, napkin.string);
+        defer allocator.free(napkin_paths);
+        try paths.appendSlice(napkin_paths);
+    }
+
+    // add the context file itself
+    try paths.append(context_path);
+
+    return paths.toOwnedSlice();
+}
