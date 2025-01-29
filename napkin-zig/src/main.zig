@@ -131,6 +131,32 @@ fn runCli() !void {
         return;
     }
 
+    if (std.mem.eql(u8, args[1], "export")) {
+        if (args.len < 3) {
+            printHelp();
+            return error.ExpectedArgument;
+        }
+
+        // get the output path
+        const output_path = args[2];
+
+        var uids: []const []const u8 = &.{};
+
+        // check for user-provided uids
+        if (args.len > 4)
+        if (try root.cli.parseOption(args[3])) |option| {
+            if (!std.mem.eql(u8, option, "u") and !std.mem.eql(u8, option, "uids"))
+                return error.UnexpectedOption;
+
+            uids = args[4..];
+        };
+
+        // export the napkins
+        try root.context.exportNapkins(allocator, output_path, uids);
+
+        return;
+    }
+
     if (std.mem.eql(u8, args[1], "clean")) {
         // get all the referenced paths
         const referenced = try root.context.referencedFiles(allocator);

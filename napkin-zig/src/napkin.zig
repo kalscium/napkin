@@ -167,8 +167,8 @@ pub fn newNapkin(allocator: std.mem.Allocator, uid: []const u8, fext: []const u8
     try root.context.addNapkin(allocator, uid);
 }
 
-/// Returns the latest version of a napkin's contents, owned by the caller
-pub fn latestContents(allocator: std.mem.Allocator, uid: []const u8) ![]const u8 {
+/// Returns the id of the latest version of a napkin, owned by the caller
+pub fn latest(allocator: std.mem.Allocator, uid: []const u8) ![]const u8 {
     // get the path to the napkin metadata
     const meta_path = try metaPath(allocator, uid);
     defer allocator.free(meta_path);
@@ -185,31 +185,44 @@ pub fn latestContents(allocator: std.mem.Allocator, uid: []const u8) ![]const u8
     var metadata = try yaml.Yaml.load(allocator, meta_str);
     defer metadata.deinit();
 
-    // get the latest (largest) napkin id and it's file extension
+    // get the latest (largest) napkin id and it's string version
     const napkins = metadata.docs.items[0].map.get("history").?.map.keys();
     var id: i128 = 0;
-    var fext: []const u8 = undefined;
+    var id_str: []const u8 = undefined;
     for (napkins) |napkin| {
         const val = try std.fmt.parseInt(i128, napkin, 0);
         if (val > id) {
             id = val;
-            fext = metadata
-                .docs
-                .items[0]
-                .map
-                .get("history").?
-                .map
-                .get(napkin).?
-                .map
-                .get("fext").?
-                .string;
+            id_str = napkin;
         }
     }
 
+    // clone the id
+    const id_cloned = try allocator.alloc(u8, id_str.len);
+    std.mem.copyForwards(u8, id_cloned, id_str);
+
+    return id_cloned;
+}
+
+/// Returns the latest version of a napkin's contents, owned by the caller
+pub fn latestContents(allocator: std.mem.Allocator, uid: []const u8) ![]const u8 {
+    // get the latest version id
+    const id = try latest(allocator, uid);
+    defer allocator.free(id);
+
+    // get the file extension
+    const meta_path = try metaPath(allocator, uid);
+    defer allocator.free(meta_path);
+    const meta_contents = try root.configs.readToString(allocator, meta_path);
+    defer allocator.free(meta_contents);
+    var metadata = try yaml.Yaml.load(allocator, meta_contents);
+    defer metadata.deinit();
+    const fext = metadata.docs.items[0].map.get("history").?.map.get(id).?.map.get("fext").?.string;
+    
     // construct the path
     const home_path = try root.getHome(allocator);
     defer allocator.free(home_path);
-    const content_path = try std.fmt.allocPrint(allocator, "{s}/napkins/{s}/{}.{s}", .{ home_path, uid, id, fext });
+    const content_path = try std.fmt.allocPrint(allocator, "{s}/napkins/{s}/{s}.{s}", .{ home_path, uid, id, fext });
     defer allocator.free(content_path);
 
     // read the contents of it

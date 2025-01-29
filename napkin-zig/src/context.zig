@@ -243,3 +243,81 @@ pub fn referencedFiles(allocator: std.mem.Allocator) ![]const []const u8 {
 
     return paths.toOwnedSlice();
 }
+
+/// Exports the contents of a context file into a specified output directory
+pub fn exportNapkins(allocator: std.mem.Allocator, out_path: []const u8, uids: []const []const u8) !void {
+    // create the output directory if it doesn't exist already
+    if (std.fs.cwd().access(out_path, .{})) {}
+    else |err| switch (err) {
+        error.FileNotFound => try std.fs.cwd().makeDir(out_path),
+        else => return err,
+    }
+
+    // get the real path
+    const abs_path = try std.fs.cwd().realpathAlloc(allocator, out_path);
+    defer allocator.free(abs_path);
+
+    // create the output directory if it doesn't exist already (abs)
+    if (!try root.pathExists(abs_path))
+        try std.fs.makeDirAbsolute(abs_path);
+
+    // get the contents of the context.yml
+    const context_path = try getPath(allocator);
+    defer allocator.free(context_path);
+    const context_contents = try root.configs.readToString(allocator, context_path);
+    defer allocator.free(context_contents);
+    var context = try yaml.Yaml.load(allocator, context_contents);
+    defer context.deinit();
+
+    // get the list of napkins
+    const napkins = context.docs.items[0].map.get("napkins").?.list;
+
+    // make sure all the provided uids are valid
+    validate: for (uids) |uid| {
+        for (napkins) |napkin|
+            if (std.mem.eql(u8, uid, napkin.string))
+                continue :validate;
+        return error.NapkinNotFound;
+    }
+
+    // if none selected, then all selected
+    var to_export = uids;
+    if (uids.len == 0) {
+        const all_uids = try allocator.alloc([]const u8, napkins.len);
+        for (napkins, all_uids) |napkin, *uid|
+            uid.* = napkin.string;
+        to_export = all_uids;
+    }
+    defer if (uids.len == 0) allocator.free(to_export); // jesus
+
+    // write to the files
+    for (to_export) |napkin| {
+        // get the latest edit id
+        const id = try root.napkin.latest(allocator, napkin);
+        defer allocator.free(id);
+
+        // get the metadata
+        const meta_path = try root.napkin.metaPath(allocator, napkin);
+        defer allocator.free(meta_path);
+        const meta_contents = try root.configs.readToString(allocator, meta_path);
+        defer allocator.free(meta_contents);
+        var metadata = try yaml.Yaml.load(allocator, meta_contents);
+        defer metadata.deinit();
+
+        // get the file extension
+        const fext = metadata.docs.items[0].map.get("history").?.map.get(id).?.map.get("fext").?.string;
+
+        // get the filename & final path
+        const file_path = try std.fmt.allocPrint(allocator, "{s}/{s}.{s}", .{ abs_path, napkin, fext });
+        defer allocator.free(file_path);
+        std.debug.print("exporting napkin '{s}' to ", .{napkin});
+        try std.fmt.format(std.io.getStdOut().writer(), "{s}\n", .{file_path});
+
+        // get the contents
+        const contents = try root.napkin.latestContents(allocator, napkin);
+        defer allocator.free(contents);
+
+        // write the contents to the final file
+        try root.configs.writeToFile(contents, file_path);
+    }
+}
