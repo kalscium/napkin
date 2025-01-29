@@ -166,3 +166,54 @@ pub fn addNapkin(allocator: std.mem.Allocator, uid: []const u8) !void {
     try doc.stringify(&wfile.writer());
     wfile.close();
 }
+
+/// Prints the napkins in a context file in a pretty way
+pub fn listNapkins(allocator: std.mem.Allocator) !void {
+    // get the context's contents
+    const context_path = try getPath(allocator);
+    defer allocator.free(context_path);
+    const context_contents = try root.configs.readToString(allocator, context_path);
+    defer allocator.free(context_contents);
+    var doc = try yaml.Yaml.load(allocator, context_contents);
+    defer doc.deinit();
+
+    // get the list of napkins
+    const napkins = doc.docs.items[0].map.get("napkins").?.list;
+
+    // find the longest napkin uid
+    var longest: usize = 0;
+    for (napkins) |napkin| {
+        const napkin_uid = napkin.string;
+        if (napkin_uid.len > longest)
+            longest = napkin_uid.len;
+    }
+
+    // print the napkins
+    var stdout = std.io.getStdOut();
+    for (napkins) |napkin| {
+        // get the napkin's metadata
+        const meta_path = try root.napkin.metaPath(allocator, napkin.string);
+        defer allocator.free(meta_path);
+        const meta_contents = try root.configs.readToString(allocator, meta_path);
+        defer allocator.free(meta_contents);
+        var metadata = try yaml.Yaml.load(allocator, meta_contents);
+        defer metadata.deinit();
+
+        // get the description
+        const description = metadata.docs.items[0].map.get("description").?.string;
+
+        // allocate the padding
+        const padding = try allocator.alloc(u8, longest - napkin.string.len);
+        defer allocator.free(padding);
+        for (padding) |*char| {
+            char.* = ' ';
+        }
+
+        // print the formatted string
+        try std.fmt.format(stdout.writer(), "{s}{s} | {s}\n", .{
+            napkin.string,
+            padding,
+            description,
+        });
+    }
+}

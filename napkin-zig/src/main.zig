@@ -113,11 +113,21 @@ fn runCli() !void {
         defer allocator.free(latest);
 
         // print details
-        std.debug.print("contents of {s}:\n", .{uid});
+        std.debug.print("<<< CONTENTS OF {s} >>>\n", .{uid});
 
         // print the contents
         var stdout = std.io.getStdOut();
         try std.fmt.format(stdout.writer(), "{s}", .{latest});
+        return;
+    }
+
+    if (std.mem.eql(u8, args[1], "list")) {
+        // print a quick header
+        std.debug.print("<<< NAPKINS >>>\n", .{});
+
+        // print the rest of the napkins
+        try root.context.listNapkins(allocator);
+
         return;
     }
 
