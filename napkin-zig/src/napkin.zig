@@ -7,14 +7,14 @@ const datetime = @import("datetime");
 
 pub const template =
     \\---
-    \\name: foo
-    \\fileext: txt
-    \\description: bar
-    \\creation-date: {s}
+    \\uid: {s}
+    \\fext: {s}
+    \\description: description of {s}
+    \\creation-iso8601: {s}
     \\history:
     \\    {}:
-    \\        fileext: txt
-    \\        datetime: {s}
+    \\        fext: {s}
+    \\        iso8601: {s}
     \\...
 ;
 
@@ -48,7 +48,7 @@ pub fn editMetaStr(allocator: std.mem.Allocator, contents: *[]const u8) !void {
                 return error.UserDumpInterrupt;
 
         // check for fields
-        inline for (.{"name", "fileext", "description", "creation-date", "history"}) |field| {
+        inline for (.{"uid", "fext", "description", "creation-iso8601", "history"}) |field| {
             if (!map.contains(field)) {
                 try root.configs.annotateErr(allocator, contents, error.MissingMetaConfigField);
                 continue :loop;
@@ -60,19 +60,19 @@ pub fn editMetaStr(allocator: std.mem.Allocator, contents: *[]const u8) !void {
 }
 
 /// Returns the meta-data path of a napkin that's owned by the caller
-pub fn metaPath(allocator: std.mem.Allocator, id: i128) ![]const u8 {
+pub fn metaPath(allocator: std.mem.Allocator, uid: []const u8) ![]const u8 {
     const home_path = try root.getHome(allocator);
     defer allocator.free(home_path);
-    const path = try std.fmt.allocPrint(allocator, "{s}/{}/meta.yml", .{ home_path, id });
+    const path = try std.fmt.allocPrint(allocator, "{s}/{s}/meta.yml", .{ home_path, uid });
     return path;
 }
 
 /// Makes the user edit the meta-data of a pre-existing napkin
-pub fn editMeta(allocator: std.mem.Allocator, id: i128) !void {
+pub fn editMeta(allocator: std.mem.Allocator, uid: []const u8) !void {
     try root.context.checkVersion(allocator);
 
     // get the meta-data path
-    const meta_path = try metaPath(allocator, id);
+    const meta_path = try metaPath(allocator, uid);
     defer allocator.free(meta_path);
 
     // check if the meta-data file exists or not
@@ -95,16 +95,10 @@ pub fn editMeta(allocator: std.mem.Allocator, id: i128) !void {
 }
 
 /// Creates a new napkin and updates the context.yml
-pub fn newNapkin(allocator: std.mem.Allocator) !void {
+pub fn newNapkin(allocator: std.mem.Allocator, uid: []const u8, fext: []const u8) !void {
     // get the context.yml path
     const context_path = try root.context.getPath(allocator);
     defer allocator.free(context_path);
-
-    // get the current time
-    const now = datetime.datetime.Datetime.now();
-    const now_timestamp = now.toTimestamp();
-    const now_iso8601 = try now.formatISO8601(allocator, true);
-    defer allocator.free(now_iso8601);
 
     try root.context.checkVersion(allocator);
 
@@ -112,53 +106,61 @@ pub fn newNapkin(allocator: std.mem.Allocator) !void {
     var lock = try root.lock.lock(allocator, context_path);
     defer lock.unlock();
 
+    // make sure that the napkin doesn't exist already
+    if (try root.context.napkinExists(allocator, uid))
+        return error.NapkinAlreadyExists;
+
+    // get the current time
+    const now = datetime.datetime.Datetime.now();
+    const now_timestamp = now.toTimestamp();
+    const now_iso8601 = try now.formatISO8601(allocator, true);
+    defer allocator.free(now_iso8601);
+
+    // create this napkin's dir
+    const home_path = try root.getHome(allocator);
+    defer allocator.free(home_path);
+    const napkin_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ home_path, uid });
+    defer allocator.free(napkin_path);
+    try std.fs.makeDirAbsolute(napkin_path);
+
+    // format the path of the napkin's first edit
+    const edit_path = try std.fmt.allocPrint(allocator, "{s}/{}.{s}", .{
+        napkin_path,
+        now_timestamp,
+        fext,
+    });
+    defer allocator.free(edit_path);
+
+    // get the first user-edit of the napkin
+    try root.configs.writeToFile("waiting for something to happen?", edit_path);
+    try root.tmp.edit(allocator, edit_path);
+
     // get the user-edited meta-data
     var metadata = try std.fmt.allocPrint(allocator, template, .{
+        uid,
+        fext,
+        uid,
         now_iso8601,
         now_timestamp,
+        fext,
         now_iso8601,
     });
     defer allocator.free(metadata);
     try editMetaStr(allocator, &metadata);
 
-    // unlock for the addNapkin to work without errors
-    lock.unlock();
-
-    // add the napkin to context.yml (also handles napkins already existing)
-    try root.context.addNapkin(allocator, now_timestamp);
-
-    lock = try root.lock.lock(allocator, context_path); // to continue to lock after addNapkin
-
-    // get the file extension from the yaml configs
-    var doc = try yaml.Yaml.load(allocator, metadata);
-    defer doc.deinit();
-    const fileext = doc.docs.items[0].map.get("fileext").?.string;
-
-    // get the paths
-    const home_path = try root.getHome(allocator);
-    defer allocator.free(home_path);
-    const napkin_path = try std.fmt.allocPrint(allocator, "{s}/{}", .{ home_path, now_timestamp });
-    defer allocator.free(napkin_path);
-    const meta_path = try metaPath(allocator, now_timestamp);
+    // write the meta-data to the napkin home
+    const meta_path = try std.fmt.allocPrint(allocator, "{s}/meta.yml", .{napkin_path});
     defer allocator.free(meta_path);
-    const content_path = try std.fmt.allocPrint(allocator, "{s}/{}.{s}", .{ napkin_path, now_timestamp, fileext });
-    defer allocator.free(content_path);
-    
-    // write everything to the napkin home
-    try std.fs.makeDirAbsolute(napkin_path);
     try root.configs.writeToFile(metadata, meta_path);
-    try root.configs.writeToFile("waiting for something to happen?\n", content_path);
 
-    // write the result to stdout & stderr
-    std.debug.print("initialised napkin id: ", .{});
-    var stdout = std.io.getStdOut();
-    try std.fmt.format(stdout.writer(), "{}\n", .{now_timestamp});
+    // add the napkin to context.yml
+    try root.context.addNapkin(allocator, uid);
 }
 
 /// Returns the latest version of a napkin's contents, owned by the caller
-pub fn latestContents(allocator: std.mem.Allocator, nid: i128) ![]const u8 {
+pub fn latestContents(allocator: std.mem.Allocator, uid: []const u8) ![]const u8 {
     // get the path to the napkin metadata
-    const meta_path = try metaPath(allocator, nid);
+    const meta_path = try metaPath(allocator, uid);
     defer allocator.free(meta_path);
 
     // check if it exists or not
@@ -176,12 +178,12 @@ pub fn latestContents(allocator: std.mem.Allocator, nid: i128) ![]const u8 {
     // get the latest (largest) napkin id and it's file extension
     const napkins = metadata.docs.items[0].map.get("history").?.map.keys();
     var id: i128 = 0;
-    var fileext: []const u8 = undefined;
+    var fext: []const u8 = undefined;
     for (napkins) |napkin| {
         const val = try std.fmt.parseInt(i128, napkin, 0);
         if (val > id) {
             id = val;
-            fileext = metadata
+            fext = metadata
                 .docs
                 .items[0]
                 .map
@@ -189,7 +191,7 @@ pub fn latestContents(allocator: std.mem.Allocator, nid: i128) ![]const u8 {
                 .map
                 .get(napkin).?
                 .map
-                .get("fileext").?
+                .get("fext").?
                 .string;
         }
     }
@@ -197,7 +199,7 @@ pub fn latestContents(allocator: std.mem.Allocator, nid: i128) ![]const u8 {
     // construct the path
     const home_path = try root.getHome(allocator);
     defer allocator.free(home_path);
-    const content_path = try std.fmt.allocPrint(allocator, "{s}/{}/{}.{s}", .{ home_path, nid, id, fileext });
+    const content_path = try std.fmt.allocPrint(allocator, "{s}/{s}/{}.{s}", .{ home_path, uid, id, fext });
     defer allocator.free(content_path);
 
     // read the contents of it
@@ -206,17 +208,17 @@ pub fn latestContents(allocator: std.mem.Allocator, nid: i128) ![]const u8 {
 }
 
 /// Makes the user CoW edit a napkin's content while automatically updating it's meta.yml
-pub fn edit(allocator: std.mem.Allocator, id: i128) !void {
+pub fn edit(allocator: std.mem.Allocator, uid: []const u8) !void {
     try root.context.checkVersion(allocator);
 
     // get the meta & home paths
-    const meta_path = try metaPath(allocator, id);
+    const meta_path = try metaPath(allocator, uid);
     defer allocator.free(meta_path);
     const home_path = try root.getHome(allocator);
     defer allocator.free(home_path);
 
-    // check if the meta-data file exists or not
-    if (!try root.pathExists(meta_path))
+    // check if the napkin exists or not
+    if (!try root.context.napkinExists(allocator, uid))
         return error.NapkinNotFound;
 
     // aquire a lock on the metadata
@@ -230,10 +232,10 @@ pub fn edit(allocator: std.mem.Allocator, id: i128) !void {
     defer metadata.deinit();
 
     // get the file extension
-    const fileext = metadata.docs.items[0].map.get("fileext").?.string;
+    const fext = metadata.docs.items[0].map.get("fext").?.string;
 
     // get the latest contents
-    const contents = try latestContents(allocator, id);
+    const contents = try latestContents(allocator, uid);
     defer allocator.free(contents);
 
     // get the time
@@ -243,7 +245,7 @@ pub fn edit(allocator: std.mem.Allocator, id: i128) !void {
     defer allocator.free(timestamp_iso8601);
 
     // create the new contents file with the extension
-    const new_content_path = try std.fmt.allocPrint(allocator, "{s}/{}/{}.{s}", .{ home_path, id, timestamp, fileext });
+    const new_content_path = try std.fmt.allocPrint(allocator, "{s}/{s}/{}.{s}", .{ home_path, uid, timestamp, fext });
     defer allocator.free(new_content_path);
     try root.configs.writeToFile(contents, new_content_path);
 
@@ -255,14 +257,14 @@ pub fn edit(allocator: std.mem.Allocator, id: i128) !void {
     const format =
         \\{s}
         \\    {}:
-        \\        fileext: {s}
-        \\        datetime: {s}
+        \\        fext: {s}
+        \\        iso8601: {s}
         \\...
     ;
     var new_meta = try std.fmt.allocPrint(allocator, format, .{
         std.mem.trimRight(u8, meta_str, " \n\t."), // bit hacky, but works
         timestamp,
-        fileext,
+        fext,
         timestamp_iso8601,
     });
     defer allocator.free(new_meta);

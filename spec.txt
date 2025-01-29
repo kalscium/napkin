@@ -34,6 +34,7 @@
   force the user to re-open and edit the file, but this time, with
   error comments in the yaml on the line in which they occur denoted
   with the prefix "## ERROR: "
+* use simple names as ids instead of timestamps
 
 === CLI ===
 options:
@@ -46,10 +47,12 @@ commands:
 
 	context                   : opens and edits the context file
 
-	new                       : creates a new napkin through creating a new tmp
-								napkin meta.yml , then if it isn't dumped,
-								creates a new napkin dir, and then updates the
-								context.yml file automatically
+	new <uid> <fext>          : creates a new napkin through creating a napkin
+								dir, editing the contents of the napkin with
+								the specified file extension and writing it to
+								the napkin directory, before creating a new
+								napkin meta.yml, if it doesn't get dumped, it
+								updates the context.yml
 
 	meta <uid>                : edits the meta-data of a pre-existing napkin
 
@@ -106,25 +109,25 @@ compatibility) and also a list of all the napkins' uids.
 example `context.yml`:
 	---
 	version: 0.0.0
-	napkins: [
-		0000,
-		0001,
-	]
+	napkins:
+		- example,
+		- foo-bar,
 	...
 
 === META.YML ===
-The `meta.yml` file contains the filename, name, description and
+The `meta.yml` file contains the uid, description and
 creation-date of a napkin. A history of all the content's uids, and
-their corresponding date (for version control) is also included.
+their corresponding date (for version control), and file extensions is
+also included.
 
 example `meta.yml`:
 	---
-	name: example
-	fileext: foo
+	uid: example
+	fext: foo
 	description: an example napkin
-	creation-date: 0000-00-00T00:00:00Z
+	creation-iso8601: 0000-00-00T00:00:00Z
 	history:
 		0000:
-			fileext: foo
-			datetime: 0000-00-00T00:00:00Z
+			fext: foo
+			iso8601: 0000-00-00T00:00:00Z
 	...

@@ -112,19 +112,11 @@ pub fn checkVersion(allocator: std.mem.Allocator) !void {
         return error.VersionMismatch;
 }
 
-/// Adds a napkin to the napkin list in the context configs file
-pub fn addNapkin(allocator: std.mem.Allocator, id: i128) !void {
+/// Checks if a napkin exists or not
+pub fn napkinExists(allocator: std.mem.Allocator, uid: []const u8) !bool {
     // get the context path
     const path = try getPath(allocator);
     defer allocator.free(path);
-
-    // lock the context
-    var lock = try root.lock.lock(allocator, path);
-    defer lock.unlock();
-
-    // if the context doesn't exist already, then create it
-    if (!try root.pathExists(path))
-        try initContext(path);
 
     // read the contents of the file
     const contents = try root.configs.readToString(allocator, path);
@@ -134,20 +126,38 @@ pub fn addNapkin(allocator: std.mem.Allocator, id: i128) !void {
     var doc = try yaml.Yaml.load(allocator, contents);
     defer doc.deinit();
 
-    try checkVersion(allocator);
-
     // get and check the doc's current napkin list
-    const list = doc.docs.items[0].map.getPtr("napkins").?;
-    for (list.list) |item| { // no dupliates
-        if (item.int == @as(i64, @intCast(id)))
-            return error.NapkinAlreadyExists;
+    const list = doc.docs.items[0].map.get("napkins").?;
+    for (list.list) |item| {
+        if (std.mem.eql(u8, item.string, uid))
+            return true;
     }
+
+    return false;
+}
+
+/// Adds a napkin to the napkin list in the context configs file
+pub fn addNapkin(allocator: std.mem.Allocator, uid: []const u8) !void {
+    // get the context path
+    const path = try getPath(allocator);
+    defer allocator.free(path);
+
+    // read the contents of the file
+    const contents = try root.configs.readToString(allocator, path);
+    defer allocator.free(contents);
+
+    // parse the doc
+    var doc = try yaml.Yaml.load(allocator, contents);
+    defer doc.deinit();
+
+    // get the napkin list
+    const list = doc.docs.items[0].map.getPtr("napkins").?;
 
     // update the doc's napkin list
     const new_list = try std.mem.concat(
         allocator,
         yaml.Value,
-        &.{ list.list, &.{yaml.Value{ .int = @intCast(id) }} }
+        &.{ list.list, &.{yaml.Value{ .string = uid }} }
     );
     list.* = yaml.Value{ .list = new_list };
 

@@ -57,7 +57,16 @@ fn runCli() !void {
 
     // new command
     if (std.mem.eql(u8, args[1], "new")) {
-        try root.napkin.newNapkin(allocator);
+        // get the uid & file extension
+        if (args.len < 4) {
+            printHelp();
+            return error.ExpectedArgument;
+        }
+
+        const uid = args[2];
+        const fext = args[3];
+
+        try root.napkin.newNapkin(allocator, uid, fext);
         return;
     }
 
@@ -69,10 +78,7 @@ fn runCli() !void {
             return error.ExpectedArgument;
         }
 
-        const id = std.fmt.parseInt(i128, args[2], 0) catch |err| {
-            printHelp();
-            return err;
-        };
+        const id = args[2];
 
         try root.napkin.editMeta(allocator, id);
         return;
@@ -86,10 +92,7 @@ fn runCli() !void {
             return error.ExpectedArgument;
         }
 
-        const id = std.fmt.parseInt(i128, args[2], 0) catch |err| {
-            printHelp();
-            return err;
-        };
+        const id = args[2];
 
         try root.napkin.edit(allocator, id);
         return;
@@ -103,17 +106,14 @@ fn runCli() !void {
             return error.ExpectedArgument;
         }
 
-        const id = std.fmt.parseInt(i128, args[2], 0) catch |err| {
-            printHelp();
-            return err;
-        };
+        const uid = args[2];
 
         // get the contents
-        const latest = try root.napkin.latestContents(allocator, id);
+        const latest = try root.napkin.latestContents(allocator, uid);
         defer allocator.free(latest);
 
         // print details
-        std.debug.print("contents of {}:\n", .{id});
+        std.debug.print("contents of {s}:\n", .{uid});
 
         // print the contents
         var stdout = std.io.getStdOut();
@@ -137,7 +137,7 @@ fn printHelp() void {
         \\  list                    | Lists the napkins in a pretty format.
         \\  clean                   | Removes files from the napkin home that aren't referenced (locks too).
         \\  context                 | Opens and edits the context file.
-        \\  new                     | Creates a new napkin and updates `context.yml`.
+        \\  new  <uid> <fext>       | Creates a new napkin with the specified uid and file extension and updates `context.yml`.
         \\  meta <uid>              | Edits the meta-data of a pre-existing napkin.
     	\\  latest <uid>            | prints the latest version/edit of of a napkin.
         \\  edit <uid>              | CoW edits the contents of a pre-existing napkin.
