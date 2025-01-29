@@ -92,15 +92,16 @@ commands:
 * `(*)` denotes a file/dir where none or multiple are allowed
 * context is separated by a `|`
 
-- ~/.napkin         | ( ) home directory
-	- context.lock  | (?) lock to prevent corruption of context.yml
-	- context.yml   | ( ) context file that links ids to UNIX time uids
-	- 0000          | (+) UNIX time uid of the napkin
-		- meta.lock | (?) lock to prevent corruption of meta.yml
-		- meta.yml  | ( ) metadata for file contents
-		- 0000.txt  | (+) file contents with UNIX time uid
-	- tmp           | ( ) a temporary dir for any yml changes
-						  (randomised ids with specified extensions)
+- ~/.napkin             | ( ) home directory
+	- context.lock      | (?) lock to prevent corruption of context.yml
+	- context.yml       | ( ) context file that contains the version and uids
+	- napkins           | ( ) a directory that holds all the napkins
+		- foo           | (+) fs-valid uid & name of the napkin
+			- meta.lock | (?) lock to prevent corruption of meta.yml
+			- meta.yml  | ( ) metadata for file contents
+			- 0000.txt  | (+) file contents with UNIX time uid
+	- tmp               | ( ) a temporary dir for any yml changes (randomised
+							  ids with specified extensions)
 
 === CONTEXT.YML ===
 The `context.yml` file contains the version (for backwards and forwards

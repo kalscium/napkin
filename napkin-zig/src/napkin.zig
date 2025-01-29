@@ -63,7 +63,7 @@ pub fn editMetaStr(allocator: std.mem.Allocator, contents: *[]const u8) !void {
 pub fn metaPath(allocator: std.mem.Allocator, uid: []const u8) ![]const u8 {
     const home_path = try root.getHome(allocator);
     defer allocator.free(home_path);
-    const path = try std.fmt.allocPrint(allocator, "{s}/{s}/meta.yml", .{ home_path, uid });
+    const path = try std.fmt.allocPrint(allocator, "{s}/napkins/{s}/meta.yml", .{ home_path, uid });
     return path;
 }
 
@@ -116,10 +116,16 @@ pub fn newNapkin(allocator: std.mem.Allocator, uid: []const u8, fext: []const u8
     const now_iso8601 = try now.formatISO8601(allocator, true);
     defer allocator.free(now_iso8601);
 
-    // create this napkin's dir
+    // if the napkins dir doesn't exist, then create it
     const home_path = try root.getHome(allocator);
     defer allocator.free(home_path);
-    const napkin_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ home_path, uid });
+    const napkins_path = try std.fmt.allocPrint(allocator, "{s}/napkins", .{home_path});
+    defer allocator.free(napkins_path);
+    if (!try root.pathExists(napkins_path))
+        try std.fs.makeDirAbsolute(napkins_path);
+
+    // create this napkin's dir
+    const napkin_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ napkins_path, uid });
     defer allocator.free(napkin_path);
     try std.fs.makeDirAbsolute(napkin_path);
 
@@ -199,7 +205,7 @@ pub fn latestContents(allocator: std.mem.Allocator, uid: []const u8) ![]const u8
     // construct the path
     const home_path = try root.getHome(allocator);
     defer allocator.free(home_path);
-    const content_path = try std.fmt.allocPrint(allocator, "{s}/{s}/{}.{s}", .{ home_path, uid, id, fext });
+    const content_path = try std.fmt.allocPrint(allocator, "{s}/napkins/{s}/{}.{s}", .{ home_path, uid, id, fext });
     defer allocator.free(content_path);
 
     // read the contents of it
@@ -245,7 +251,7 @@ pub fn edit(allocator: std.mem.Allocator, uid: []const u8) !void {
     defer allocator.free(timestamp_iso8601);
 
     // create the new contents file with the extension
-    const new_content_path = try std.fmt.allocPrint(allocator, "{s}/{s}/{}.{s}", .{ home_path, uid, timestamp, fext });
+    const new_content_path = try std.fmt.allocPrint(allocator, "{s}/napkins/{s}/{}.{s}", .{ home_path, uid, timestamp, fext });
     defer allocator.free(new_content_path);
     try root.configs.writeToFile(contents, new_content_path);
 
