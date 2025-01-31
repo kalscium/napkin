@@ -321,3 +321,87 @@ pub fn exportNapkins(allocator: std.mem.Allocator, out_path: []const u8, uids: [
         try root.configs.writeToFile(contents, file_path);
     }
 }
+
+/// Backups up the contents of a context file into a specified output directory
+pub fn backupNapkins(allocator: std.mem.Allocator, out_path: []const u8, uids: []const []const u8) !void {
+    // create the output directory if it doesn't exist already
+    if (std.fs.cwd().access(out_path, .{})) {}
+    else |err| switch (err) {
+        error.FileNotFound => try std.fs.cwd().makeDir(out_path),
+        else => return err,
+    }
+
+    // get the real path
+    const abs_path = try std.fs.cwd().realpathAlloc(allocator, out_path);
+    defer allocator.free(abs_path);
+
+    // create the output directory if it doesn't exist already (abs)
+    if (!try root.pathExists(abs_path))
+        try std.fs.makeDirAbsolute(abs_path);
+
+    // get the contents of the context.yml
+    const context_path = try getPath(allocator);
+    defer allocator.free(context_path);
+    const context_contents = try root.configs.readToString(allocator, context_path);
+    defer allocator.free(context_contents);
+    var context = try yaml.Yaml.load(allocator, context_contents);
+    defer context.deinit();
+
+    // get the list of napkins
+    const napkins = context.docs.items[0].map.get("napkins").?.list;
+
+    // make sure all the provided uids are valid
+    validate: for (uids) |uid| {
+        for (napkins) |napkin|
+            if (std.mem.eql(u8, uid, napkin.string))
+                continue :validate;
+        return error.NapkinNotFound;
+    }
+
+    // if none selected, then all selected
+    var to_export = uids;
+    if (uids.len == 0) {
+        const all_uids = try allocator.alloc([]const u8, napkins.len);
+        for (napkins, all_uids) |napkin, *uid|
+            uid.* = napkin.string;
+        to_export = all_uids;
+    }
+    defer if (uids.len == 0) allocator.free(to_export); // jesus
+
+    // get the base napkin-home path
+    const home_path = try root.getHome(allocator);
+    defer allocator.free(home_path);
+
+    // create the napkins dir
+    const napkins_path = try std.fmt.allocPrint(allocator, "{s}/napkins", .{abs_path});
+    defer allocator.free(napkins_path);
+    if (!try root.pathExists(napkins_path))
+        try std.fs.makeDirAbsolute(napkins_path);
+
+    // write to the files
+    for (to_export) |napkin| {
+        // get the referenced paths
+        const paths = try root.napkin.referencedFiles(allocator, napkin);
+        defer allocator.free(paths);
+
+        // create the napin's path (if it doesn't exist already)
+        const napkin_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ napkins_path, napkin });
+        defer allocator.free(napkin_path);
+        if (!try root.pathExists(napkin_path))
+            try std.fs.makeDirAbsolute(napkin_path);
+
+        for (paths) |path| {
+            // trim and construct the final path
+            const trimmed_path = path[home_path.len+1..];
+            const file_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ abs_path, trimmed_path });
+            defer allocator.free(file_path);
+            std.debug.print("copying '{s}' to '{s}'\n", .{ path, file_path });
+            try std.fs.copyFileAbsolute(path, file_path, .{});
+        }
+    }
+
+    // write the context file too
+    const context_trimmed = context_path[home_path.len+1..];
+    const context_out = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ abs_path, context_trimmed });
+    try std.fs.copyFileAbsolute(context_path, context_out, .{});
+}

@@ -9,7 +9,7 @@ pub const configs = @import("configs.zig");
 pub const lock = @import("lock.zig");
 
 /// The version of napkin
-pub const version = "1.0.0";
+pub const version = "1.1.0";
 
 /// Gets the napkin home-directory path as an allocated string that is owned
 /// by the caller
