@@ -169,6 +169,8 @@ pub fn addNapkin(allocator: std.mem.Allocator, uid: []const u8) !void {
 
 /// Prints the napkins in a context file in a pretty way
 pub fn listNapkins(allocator: std.mem.Allocator) !void {
+    try checkVersion(allocator);
+
     // get the context's contents
     const context_path = try getPath(allocator);
     defer allocator.free(context_path);

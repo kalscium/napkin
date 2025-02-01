@@ -1,0 +1,5 @@
+### ERROR: error.MalformedYaml
+---
+version: 1.0.0
+napkins: [ hello-world, events, foxland ]
+...

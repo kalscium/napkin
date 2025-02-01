@@ -1,0 +1,72 @@
+=== POSSIBLE GAMEPLAY ===
+* survival game, gather resources
+* no hostile mobs or even man-made structures at all
+* you are alone
+* procedurally generated terrain (wave-function collapse) with seeds
+* large worlds
+* your biggest enemy is the environment
+* natural disasters
+* rain, corrosion
+* wind, tornados
+* earth-quakes
+* trees fall
+* lightening
+* hunger, thirst and lucid-ness
+* when your lucid-ness is low, the world slows down, blurs, bloom gets
+  stronger, sound distorts; you know what I'm talking about
+* peaceful mobs and foxes
+* no end
+* similar gameplay to building sandcastles at the beach and seeing how
+  long they last
+* you can never win, all you can do is extend how long you and your
+  structures last
+* the whole point of the game is to see how far you'll go, similar to
+  that of skyblock
+* all the tools and blocks and everything are all just to further what
+  you can achieve, and how long you can achieve
+* there are no bugs, only features that are a direct result from the
+  world's rules
+* a settings page that lets you tweak the intensity of the world and
+  other stuff
+* all game mechanics MUST be linear
+  * though animations don't have to be
+
+=== POSSIBLE MUSIC & SOUND DESIGN ===
+* a bunch of different rain sounds for every situation
+* incredibly immersive ambiant sound
+* put the MOST focus on the sound
+* music, similar to that of minecraft's
+
+=== POSSIBLE 'FOREVER' FEATURES ===
+* fully open-source; make money from videos and merch
+* mods compiled to WASM and run in a sandbox so they're safe and
+  universal
+* independant open-source server binaries for multiplayer
+* everything has extensive documentation so that modding and mini-games
+  (through servers) become trivial
+* resource-packs and even server mods that can be sent to the client
+* no 'official' servers, but I can have servers for the youtube channel
+  that makes the game
+* local LAN multiplayer
+
+=== POSSIBLE RENDERING EFFECTS ===
+* dithering
+* stylised color quantization (like a cartoon shader)
+* color corrections
+* bloom
+* fog & blur
+* no anti-aliasing
+* low poly models
+* low resolution
+* soft but vibrant lighting with rain
+* the world is incredibly dark & saturated, almost depressed though the
+  lighting radiates and become more visible due to such; vibrant but
+  soft
+
+=== POSSIBLE INSPIRATIONS ===
+* minecraft (obviously)
+* hollow-knight (loneliness & overall vibe)
+* a short hike (for a similar rendering style)
+
+not everything yet, continue this later, I've gotta sleep now, first
+day of school is tomorrow.
