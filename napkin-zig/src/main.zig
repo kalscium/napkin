@@ -108,6 +108,8 @@ fn runCli() !void {
 
         const uid = args[2];
 
+        try root.context.checkVersion(allocator);
+
         // get the contents
         const latest = try root.napkin.latestContents(allocator, uid);
         defer allocator.free(latest);
