@@ -199,7 +199,7 @@ pub fn latest(allocator: std.mem.Allocator, uid: []const u8) ![]const u8 {
 
     // clone the id
     const id_cloned = try allocator.alloc(u8, id_str.len);
-    std.mem.copyForwards(u8, id_cloned, id_str);
+    @memcpy(id_cloned, id_str);
 
     return id_cloned;
 }

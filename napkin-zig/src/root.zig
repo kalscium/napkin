@@ -9,7 +9,7 @@ pub const configs = @import("configs.zig");
 pub const lock = @import("lock.zig");
 
 /// The version of napkin
-pub const version = "1.1.1";
+pub const version = "1.1.2";
 
 /// Gets the napkin home-directory path as an allocated string that is owned
 /// by the caller
@@ -55,7 +55,7 @@ pub fn dirFiles(allocator: std.mem.Allocator, path: []const u8) ![]const []const
         if (entry.kind == .file) {
             // clone it
             const entry_path = try allocator.alloc(u8, entry.path.len);
-            std.mem.copyForwards(u8, entry_path, entry.path);
+            @memcpy(entry_path, entry.path);
             try files.append(entry_path);
         }
     }
